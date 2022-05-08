@@ -14,6 +14,8 @@ import {
 import { clusterApiUrl } from '@solana/web3.js';
 import { AppProps } from 'next/app';
 import { FC, useMemo } from 'react';
+import * as anchor from '@project-serum/anchor';
+import { DEFAULT_TIMEOUT } from '../connection';
 
 import { ThemeProvider } from 'styled-components';
 import { themeDark } from '../components/themes/DefaultTheme';
@@ -36,12 +38,35 @@ import './_app.css';
 require('@solana/wallet-adapter-react-ui/styles.css');
 require('../styles/globals.css');
 
+const getCandyMachineId = (): anchor.web3.PublicKey | undefined => {
+	try {
+		const candyMachineId = new anchor.web3.PublicKey(
+			process.env.REACT_APP_CANDY_MACHINE_ID!,
+		);
+
+		return candyMachineId;
+	} catch (e) {
+		console.log('Failed to construct CandyMachineId', e);
+		return undefined;
+	}
+};
+
+const candyMachineId = getCandyMachineId();
+
+const network = process.env.REACT_APP_SOLANA_NETWORK as WalletAdapterNetwork;
+
+const rpcHost = process.env.REACT_APP_SOLANA_RPC_HOST!;
+
+const connection = new anchor.web3.Connection(
+	rpcHost ? rpcHost : anchor.web3.clusterApiUrl('devnet'),
+);
+
 const App: FC<AppProps> = ({ Component, pageProps, router }) => {
 	// Can be set to 'devnet', 'testnet', or 'mainnet-beta'
-	const network = WalletAdapterNetwork.Devnet;
+	// const network = WalletAdapterNetwork.Devnet;
 
 	// You can also provide a custom RPC endpoint
-	const endpoint = useMemo(() => clusterApiUrl(network), [network]);
+	const endpoint = useMemo(() => clusterApiUrl(network), []);
 
 	// @solana/wallet-adapter-wallets includes all the adapters but supports tree shaking and lazy loading --
 	// Only the wallets you configure here will be compiled into your application, and only the dependencies
@@ -54,7 +79,7 @@ const App: FC<AppProps> = ({ Component, pageProps, router }) => {
 			new SolflareWalletAdapter({ network }),
 			new TorusWalletAdapter(),
 		],
-		[network]
+		[]
 	);
 
 	// @todo make setTheme prop work on the ThemeProvider by extending the Interface/Component?
@@ -103,7 +128,16 @@ const App: FC<AppProps> = ({ Component, pageProps, router }) => {
 										<MotionNavbar />
 									</MenuProvider>
 									<AnimatePresence exitBeforeEnter>
-										<Component {...pageProps} canonical={url} key={url} />
+										<Component 
+											{...pageProps}
+											canonical={url} 
+											key={url}
+											candyMachineId={candyMachineId}
+											connection={connection}
+											txTimeout={DEFAULT_TIMEOUT}
+											rpcHost={rpcHost}
+											network={network}
+										/>
 									</AnimatePresence>
 								</MotionConfig>
 							</LazyMotion>
